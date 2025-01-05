@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid ">
+    <div class="row m-4">
+        <div class="col-8">
+            <div class="row">
+                <div class="d-flex justify-content-center">
+                    <h2>Data Status</h2>
+                </div>
+            </div>
+
+            
+            {% for inst in data %}
+            <div class="row">
+                <div class="col">
+                    <div class="row">
+                        <div class="d-flex justify-content-center">
+                            <h3>{{ inst.title }}</h3>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <p>Data Import Time: {{ inst.import_time }}</p>
+                        <p>Data Rows Count: {{ inst.count }}</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-fluid">
+                            <a href="{{ url_for('upload')}}" class="btn btn-success">Upload New Data</a>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="d-flex justify-content-center">
+                            {% if inst.rows %}
+                            <table class="table table-striped">
+                                <tr>
+                                    {% for header in inst.columns %}
+                                        <th>{{header}}</th>
+                                    {% endfor %}
+                                </tr>
+                                {% for row in inst.rows %}
+                                <tr>
+                                    {% for value in row.items() %}
+                                        <td>{{ value[1] }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </table>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <!-- <div class="row">
+                        <div class="d-flex justify-content-left">
+                            <a href="{{ url_for('upload')}}" class="btn btn-success">Upload Patient Data</a>
+                        </div>
+                    </div> -->
+                </div> 
+            </div>
+            {% endfor %}
+        </div>
+        <div class="col-4">
+            <div class="row">
+                <div class="d-flex justify-content-center">
+                    <h2>Perform Query</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="d-flex justify-content-center p-5">
+                    <a href="{{ url_for('dm_output') }}" class="btn btn-primary">Diabetic Query</a>
+                </div>
+            </div>
+            <div class="row">
+                <div class="d-flex justify-content-center p-5">
+                    <a href="{{ url_for('htn_output') }}" class="btn btn-primary">Hypertensive Query</a>
+                </div>
+            </div>
+            <div class="row">
+                <div class="d-flex justify-content-center p-5">
+                    <a href="{{ url_for('pat_complex_output') }}" class="btn btn-primary">Patient Complexity Query</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

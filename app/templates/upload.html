@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    {% for inst in forms %}
+        <div class="row">
+            <div class="col">
+                <h2>{{ inst.title }}</h2>
+                {% for subtitle in inst.subtitles %}
+                    <p>{{ subtitle | safe }}</strong></p>
+                {% endfor %}
+            </div>
+            <form action="" method="POST" enctype="multipart/form-data">
+                {{ inst.form.hidden_tag() }}
+                <p>
+                    {{ inst.form.uploaded_file.label }} <br>
+                    {{ inst.form.uploaded_file() }}
+                </p>
+                <p>
+                    {{ inst.form.submit() }}
+                </p>
+            </form>
+            {% if inst.form.errors %}
+            <ul>
+                {% for field, errors in inst.form.errors.items() %}
+                    {% for error in errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+
+        <hr>
+    {% endfor %}
+
+ 
+</div>
+{% endblock %}

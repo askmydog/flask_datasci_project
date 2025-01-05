@@ -1,0 +1,3 @@
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser; flask-datasci-venv/Scripts/Activate 
+
+python manage.py shell -i ipython

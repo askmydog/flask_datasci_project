@@ -1,0 +1,2 @@
+FLASK_APP=flask_datasci_proj.py
+FLASK_SHELL=ipython
