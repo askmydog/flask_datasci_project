@@ -89,15 +89,14 @@ class A1C(db.Model):
     
 
 
-class BP(db.Model):
+class EncounterBP(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    enterpriseid: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Patient.enterpriseid), index=True)
-    bpdate: so.Mapped[date] = so.mapped_column(sa.Date())
+    encounterid: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Encounter.encounterid), index=True)
     sysbp: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer())
     diabp: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer())
 
     def __repr__(self):
-        return f'({self.id}) {self.enterpriseid}, {self.bpdate}, {self.sysbp}/{self.diabp}'
+        return f'({self.id}) {self.encounterid}, {self.sysbp}/{self.diabp}'
 
 
 

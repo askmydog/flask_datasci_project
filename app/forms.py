@@ -95,7 +95,7 @@ def ValidateBPForm(form, field):
     file.stream.seek(0)
     validate_file_size(filesize, 5)
 
-    required_headers = ['enterpriseid', 'Enc BP', 'enc BP date']
+    required_headers = ['cln enc id', 'Enc BP']
     validate_file_headers(file, required_headers)
 
 class BPUploadForm(FlaskForm):

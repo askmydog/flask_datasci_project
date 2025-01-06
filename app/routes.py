@@ -9,7 +9,7 @@ from .functions import format_and_import_patient_data, format_and_import_medicat
     format_and_import_A1C_data, format_and_import_BP_data, format_and_import_RAF_data, \
     format_and_import_encounter_data, format_and_import_provider_data, format_and_import_enc_dx_data, \
     format_and_import_enc_proc_data
-from .models import Patient, Medication, A1C, BP, RAFScore, EncounterDx, TableMetadata, \
+from .models import Patient, Medication, A1C, EncounterBP, RAFScore, EncounterDx, TableMetadata, \
     Provider, Encounter, EncounterProc
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -61,10 +61,10 @@ def index():
     a1c_data = get_query_dict(a1c_query, a1c_columns)
 
     
-    bp_import_time = get_table_import_time(BP.__tablename__)
-    bp_count = db.session.query(sa.func.count(BP.id)).scalar()
-    bp_query = db.session.query(BP).limit(5).all()
-    bp_columns = BP.__table__.columns.keys()
+    bp_import_time = get_table_import_time(EncounterBP.__tablename__)
+    bp_count = db.session.query(sa.func.count(EncounterBP.id)).scalar()
+    bp_query = db.session.query(EncounterBP).limit(5).all()
+    bp_columns = EncounterBP.__table__.columns.keys()
     bp_data = get_query_dict(bp_query, bp_columns)
 
     raf_import_time = get_table_import_time(RAFScore.__tablename__)

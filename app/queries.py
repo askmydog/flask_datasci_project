@@ -96,12 +96,14 @@ def hypertensives_query():
     # Step 1: Aggregate data by date to get the minimum sysbp and diabp for each date
     aggregated_bp_subq = (
         select(
-            BP.enterpriseid,
-            BP.bpdate,
-            func.min(BP.sysbp).label('min_sysbp'),
-            func.min(BP.diabp).label('min_diabp')
+            Encounter.enterpriseid,
+            Encounter.enc_date,
+            func.min(EncounterBP.sysbp).label('min_sysbp'),
+            func.min(EncounterBP.diabp).label('min_diabp')
         )
-        .group_by(BP.enterpriseid, BP.bpdate)  # Group by enterprise and date
+        .join(Encounter, 
+              EncounterBP.encounterid == Encounter.encounterid)
+        .group_by(Encounter.enterpriseid, Encounter.enc_date)  # Group by enterprise and date
         .subquery()
     )
 
@@ -109,13 +111,13 @@ def hypertensives_query():
     row_number_subq = (
         select(
             aggregated_bp_subq.c.enterpriseid,
-            aggregated_bp_subq.c.bpdate,
+            aggregated_bp_subq.c.enc_date,
             aggregated_bp_subq.c.min_sysbp.label('sysbp'),
             aggregated_bp_subq.c.min_diabp.label('diabp'),
             func.row_number()
             .over(
                 partition_by=aggregated_bp_subq.c.enterpriseid,
-                order_by=aggregated_bp_subq.c.bpdate
+                order_by=aggregated_bp_subq.c.enc_date
             )
             .label('row_number'),
         )
@@ -126,7 +128,7 @@ def hypertensives_query():
     group_identifier_subquery = (
         select(
             row_number_subq.c.enterpriseid,
-            row_number_subq.c.bpdate,
+            row_number_subq.c.enc_date,
             row_number_subq.c.row_number,
             row_number_subq.c.sysbp,
             row_number_subq.c.diabp,
@@ -145,7 +147,7 @@ def hypertensives_query():
     gap_group_subq = (
         select(
             group_identifier_subquery.c.enterpriseid,
-            group_identifier_subquery.c.bpdate,
+            group_identifier_subquery.c.enc_date,
             group_identifier_subquery.c.sysbp,
             group_identifier_subquery.c.diabp,
             group_identifier_subquery.c.row_number,
@@ -166,7 +168,7 @@ def hypertensives_query():
         select(
             gap_group_subq.c.enterpriseid,
             gap_group_subq.c.group_id,
-            func.max(gap_group_subq.c.bpdate).label("latest_bpdate"),
+            func.max(gap_group_subq.c.enc_date).label("latest_bpdate"),
         )
         .group_by(gap_group_subq.c.enterpriseid, gap_group_subq.c.group_id)
         .subquery()
@@ -190,7 +192,7 @@ def hypertensives_query():
             Patient.age,
             Patient.sex,
             Patient.prim_prov,
-            func.strftime('%m/%d/%Y', gap_group_subq.c.bpdate),
+            func.strftime('%m/%d/%Y', gap_group_subq.c.enc_date),
             gap_group_subq.c.sysbp,
             gap_group_subq.c.diabp,
         )
@@ -210,7 +212,7 @@ def hypertensives_query():
             gap_group_subq.c.enterpriseid == Patient.enterpriseid
         )
         .where(group_count_subq.c.consecutive_count >= 3)  # At least 3 consecutive rows
-        .where(gap_group_subq.c.bpdate == latest_record_subq.c.latest_bpdate)  # Latest record condition
+        .where(gap_group_subq.c.enc_date == latest_record_subq.c.latest_bpdate)  # Latest record condition
         .order_by(gap_group_subq.c.sysbp, gap_group_subq.c.diabp)
     )
 

@@ -1,7 +1,7 @@
 from werkzeug.datastructures import FileStorage
 import pandas as pd
 import datetime as dt
-from .models import Patient, Medication, A1C, BP, RAFScore, EncounterDx, TableMetadata, Provider, Encounter, EncounterProc
+from .models import Patient, Medication, A1C, EncounterBP, RAFScore, EncounterDx, TableMetadata, Provider, Encounter, EncounterProc
 import re
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -435,7 +435,7 @@ def format_and_import_BP_data(file_path: str) -> None:
     bp_df = pd.read_csv(file_path, header=header_line)
 
         # Check if required columns exist
-    required_columns = ['enterpriseid', 'Enc BP', 'enc BP date']
+    required_columns = ['cln enc id', 'Enc BP']
 
     validate_header_df(bp_df, required_columns)
 
@@ -454,23 +454,19 @@ def format_and_import_BP_data(file_path: str) -> None:
     # Do the same for diastolic blood pressure
     bp_df["diabp"] = bp_df['Enc BP'].map(lambda row: diabp_pattern.search(row).group(0) if diabp_pattern.search(row) else None)
 
-    # Convert BP to the date only from a datetime object    
-    bp_df['enc BP date'] = bp_df['enc BP date'].apply(lambda row: pd.to_datetime(row, errors='coerce').date())
-
     # Create a list of BP model objects to be uploaded to the database
     bp_records = [
-        BP(enterpriseid = row['enterpriseid'],
-                   bpdate = row['enc BP date'],
+        EncounterBP(encounterid = row['cln enc id'],
                    sysbp = row['sysbp'],
                    diabp = row['diabp'])
         for _, row in bp_df.iterrows()
     ]
 
-    db.session.query(BP).delete()  # Clear out existing entries 
+    db.session.query(EncounterBP).delete()  # Clear out existing entries 
     db.session.bulk_save_objects(bp_records) # Save all new records
     db.session.commit() # Commit to database
 
-    set_table_import_time(BP.__tablename__)
+    set_table_import_time(EncounterBP.__tablename__)
 
     flash(f"Successfully imported {len(bp_records)} records.", category='success')
 
@@ -528,7 +524,7 @@ def format_and_import_encounter_data(file_path: str) -> None:
     # Remove rows with null values
     enc_df.dropna(subset=required_columns, inplace=True)
 
-
+    # Convert encounter date to datetime object
     enc_df['cln enc date'] = enc_df['cln enc date'].apply(lambda row: pd.to_datetime(row, errors='coerce').date())
 
     enc_records = [
