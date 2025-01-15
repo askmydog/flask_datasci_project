@@ -1,7 +1,8 @@
 from werkzeug.datastructures import FileStorage
 import pandas as pd
 import datetime as dt
-from .models import Patient, Medication, A1C, EncounterBP, RAFScore, EncounterDx, TableMetadata, Provider, Encounter, EncounterProc
+from .models import Patient, Medication, A1C, EncounterBP, RAFScore, EncounterDx, \
+    TableMetadata, Provider, Encounter, EncounterProc, Mammogram
 import re
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -681,3 +682,47 @@ def format_and_import_provider_data(file_path: str) -> None:
     set_table_import_time(Provider.__tablename__)
 
     flash(f"Successfully imported {len(prov_records)} records.", category='success')
+
+
+
+
+def format_and_import_mammo_data(file_path: str) -> None:
+
+    header_line = get_header_line(file_path)
+
+    mam_df = pd.read_csv(file_path, header=header_line)
+
+    # Check if required columns exist
+    required_columns = ['enterpriseid', 'dt f lst mmmgrm', 'dt f lst mmmgrm mdfd dt', 'mmmgrm rslt']
+
+    validate_header_df(mam_df, required_columns)
+
+    # Remove rows with null values
+    mam_df.dropna(subset=required_columns, inplace=True)
+
+    # Convert encounter date to datetime object
+    mam_df['dt f lst mmmgrm'] = mam_df['dt f lst mmmgrm'].apply(lambda row: pd.to_datetime(row, errors='coerce').date())
+
+    mam_df['dt f lst mmmgrm mdfd dt'] = mam_df['dt f lst mmmgrm mdfd dt'].apply(lambda row: pd.to_datetime(row, errors='coerce').date())
+
+    enc_records = [
+        Mammogram(
+            enterpriseid = row['enterpriseid'],
+            mammo_date = row['dt f lst mmmgrm'],
+            mammo_modified_date = row['dt f lst mmmgrm mdfd dt'],
+            mammo_result = row['mmmgrm rslt'],
+        )
+        for _, row in mam_df.iterrows()
+    ]
+
+    
+    # Clear existing entries and add new records
+    db.session.query(Mammogram).delete()
+    db.session.bulk_save_objects(enc_records)
+
+    # Commit changes to the database
+    db.session.commit()
+
+    set_table_import_time(Mammogram.__tablename__)
+
+    flash(f"Successfully imported {len(enc_records)} records.", category='success')

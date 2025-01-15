@@ -190,6 +190,23 @@ class ProvUploadForm(FlaskForm):
 
 
 
+def ValidateMammoForm(form, field):
+    file: FileStorage = field.data
+
+    filesize = len(file.read())
+    file.stream.seek(0)
+    validate_file_size(filesize, 5)
+
+    required_headers = ['enterpriseid', 'dt f lst mmmgrm', 'dt f lst mmmgrm mdfd dt', 'mmmgrm rslt']
+    validate_file_headers(file, required_headers)
+
+class MammoUploadForm(FlaskForm):
+    uploaded_file = FileField("Mammogram Report", validators=[FileRequired(), FileAllowed(['csv'], 'CSV files only!'), ValidateMammoForm])
+    submit = SubmitField('Mammogram Upload')
+
+
+
+
 class FileDownload(FlaskForm):
     file_format = RadioField('File Format', choices=[('csv', 'CSV'), ('xlsx', 'Excel')])
     submit = SubmitField('Download File')

@@ -119,6 +119,12 @@ class RAFScore(db.Model):
     def __repr__(self):
         return f'({self.id}) {self.enterpriseid}, RAF={self.raf_score}'
     
+class Mammogram(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    enterpriseid: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Patient.enterpriseid), index=True)
+    mammo_date: so.Mapped[date] = so.mapped_column(sa.Date())
+    mammo_modified_date: so.Mapped[date] = so.mapped_column(sa.Date())
+    mammo_result: so.Mapped[str] = so.mapped_column(sa.String(10))
 
 
 

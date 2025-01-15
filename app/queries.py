@@ -286,4 +286,72 @@ def patient_complexity_query():
     return result
 
 def medicare_diabetes_query():
-    pass
+    medicare_subq = (
+        select(
+            Patient.enterpriseid,
+            Patient.age,
+            Patient.sex,
+            Patient.prim_prov
+        )
+        .where(
+            or_(
+                func.lower(Patient.prim_insurance_type).like("%medicare%"),
+                func.lower(Patient.sec_insurance_type).like("%medicare%")
+            ),
+            Patient.status == "a"
+        )
+        .subquery()
+    )
+
+    dfoot_ct_subq = (
+        select(
+            Encounter.enterpriseid,
+            func.count(EncounterProc.proc_code).label("dfoot_ct")
+        )
+        .join(
+            Encounter,
+            EncounterProc.encounterid == Encounter.encounterid
+        )
+        .where((func.lower(EncounterProc.proc_code).in_(['g9226', '2028f']))
+        )
+        .group_by(Encounter.enterpriseid)
+        .subquery()
+    )
+
+    diab_ct_subq = (
+        select(
+            Encounter.enterpriseid,
+            func.count(EncounterDx.dxgroup).label("diabetic_count")
+        )
+        .join(
+            Encounter,
+            Encounter.encounterid == EncounterDx.encounterid
+        )
+        .where(EncounterDx.dxgroup == "Diabetes")
+        .group_by(Encounter.enterpriseid)
+        .subquery()
+    )
+
+    final_query = (
+        select(
+            medicare_subq.c.enterpriseid,
+            medicare_subq.c.age,
+            medicare_subq.c.sex,
+            medicare_subq.c.prim_prov,
+            func.coalesce(dfoot_ct_subq.c.dfoot_ct, 0).label("had_diab_foot_exam"),
+            # diab_ct_subq.c.diabetic_count
+        )
+        .outerjoin(
+            dfoot_ct_subq,
+            medicare_subq.c.enterpriseid == dfoot_ct_subq.c.enterpriseid
+        )
+        .outerjoin(
+            diab_ct_subq,
+            medicare_subq.c.enterpriseid == diab_ct_subq.c.enterpriseid
+        )
+        .where(diab_ct_subq.c.diabetic_count > 1)  # Only include patients with > 1 diabetic diagnosis
+    )
+
+    result = db.session.execute(final_query)
+
+    return result

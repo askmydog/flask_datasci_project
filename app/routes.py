@@ -1,6 +1,7 @@
 from app import app, db
 from .forms import PatientUploadForm, MedicationUploadForm, A1CUploadForm, BPUploadForm, \
-    RAFUploadForm, FileDownload, EncUploadForm, EncDxUploadForm, EncProcUploadForm, ProvUploadForm
+    RAFUploadForm, FileDownload, EncUploadForm, EncDxUploadForm, EncProcUploadForm, \
+    ProvUploadForm, MammoUploadForm
 from werkzeug.utils import secure_filename
 import config
 import os
@@ -8,12 +9,12 @@ from flask import flash, redirect, render_template, url_for, request, send_file
 from .functions import format_and_import_patient_data, format_and_import_medication_data, \
     format_and_import_A1C_data, format_and_import_BP_data, format_and_import_RAF_data, \
     format_and_import_encounter_data, format_and_import_provider_data, format_and_import_enc_dx_data, \
-    format_and_import_enc_proc_data
+    format_and_import_enc_proc_data, format_and_import_mammo_data
 from .models import Patient, Medication, A1C, EncounterBP, RAFScore, EncounterDx, TableMetadata, \
-    Provider, Encounter, EncounterProc
+    Provider, Encounter, EncounterProc, Mammogram
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from .queries import diabetics_query, hypertensives_query, patient_complexity_query
+from .queries import diabetics_query, hypertensives_query, patient_complexity_query, medicare_diabetes_query
 import pandas as pd
 import datetime as dt
 
@@ -91,6 +92,12 @@ def index():
     encproc_columns = EncounterProc.__table__.columns.keys()
     encproc_data = get_query_dict(encproc_query, encproc_columns)
 
+    mammo_count = db.session.query(sa.func.count(Mammogram.id)).scalar()
+    mammo_import_time = get_table_import_time(Mammogram.__tablename__)
+    mammo_query = db.session.query(Mammogram).limit(5).all()
+    mammo_columns = Mammogram.__table__.columns.keys()
+    mammo_data = get_query_dict(mammo_query, mammo_columns)
+
     context = {
         "data":[
             {
@@ -155,6 +162,13 @@ def index():
                 "count": encproc_count,
                 "columns": encproc_columns,
                 "rows": encproc_data
+            },
+            { 
+                "title":"Mammogram Data",
+                "import_time": mammo_import_time,
+                "count": mammo_count,
+                "columns": mammo_columns,
+                "rows": mammo_data
             }
         ]}
     return render_template('index.html', **context)
@@ -171,6 +185,7 @@ def upload():
     EncDx_form = EncDxUploadForm()
     EncProc_form = EncProcUploadForm()
     prov_form = ProvUploadForm()
+    mammo_form = MammoUploadForm()
 
 
     if patient_form.validate_on_submit():
@@ -244,6 +259,14 @@ def upload():
         file.save(upload_path)
         format_and_import_enc_proc_data(upload_path)
         return redirect(url_for('index'))
+    
+    if mammo_form.validate_on_submit():
+        file = request.files['uploaded_file']
+        filename = secure_filename(file.filename)
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(upload_path)
+        format_and_import_mammo_data(upload_path)
+        return redirect(url_for('index'))
 
 
     context = {'forms': [
@@ -284,6 +307,10 @@ def upload():
                     {"title":"Provider Data Upload",
                      "subtitles":["Requires the columns <strong>'prvdrid', 'prvdr', 'prvdrfrstnme', 'prvdrlstnme' and 'prvdrtype'</strong>"],
                      "form": prov_form
+                     },
+                     {"title":"Mammogram Data Upload",
+                     "subtitles":["Requires the columns <strong>'enterpriseid', 'dt f lst mmmgrm', 'dt f lst mmmgrm mdfd dt', 'mmmgrm rslt'</strong>"],
+                     "form": mammo_form
                      },
                 ]}
     return render_template('upload.html', **context)
@@ -412,6 +439,47 @@ def pat_complex_output():
     # Prepare context for rendering template
     context = {
         "title": "Patient Complexity Query",
+        "form": form,
+        'column_names': columns,
+        'rows': rows
+    }
+    return render_template('output.html', **context)
+
+@app.route('/medicare_dm_output', methods=['GET', 'POST'])
+def medicare_diabetes_output():
+    form = FileDownload()
+
+    # Fetch query results
+    query_result = medicare_diabetes_query()
+    columns = query_result.keys()
+    rows = query_result.fetchall()
+
+    if form.validate_on_submit():
+        # Convert query result to DataFrame
+        df = pd.DataFrame(rows, columns=columns)
+        
+        # Prepare file name
+        filename = 'medicare_dm_output'
+        file_format = form.file_format.data
+
+        # Ensure DOWNLOAD_FOLDER exists
+        download_folder = app.config['DOWNLOAD_FOLDER']
+        
+        filepath = os.path.join(download_folder, f"{filename}_{dt.datetime.now().strftime("%Y%m%d_%H%M")}.{file_format}")
+        
+        print(filepath)
+        # Save file to DOWNLOAD_FOLDER
+        if file_format == 'csv':
+            df.to_csv(filepath, index=False)
+        else:
+            df.to_excel(filepath, index=False, engine='openpyxl')
+        
+        # Send file as response
+        return send_file(filepath, as_attachment=True)
+
+    # Prepare context for rendering template
+    context = {
+        "title": "Medicare Diabetes Query",
         "form": form,
         'column_names': columns,
         'rows': rows
